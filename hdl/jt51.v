@@ -18,29 +18,51 @@
     Date: 27-10-2016
     */
 
+// `define debug_manexp_mode 1'b1
 
 module jt51(
-    input               rst,    // reset
-    input               clk,    // main clock
-    (* direct_enable *) input cen,    // clock enable
-    (* direct_enable *) input cen_p1, // clock enable at half the speed
-    input               cs_n,   // chip select
-    input               wr_n,   // write
-    input               a0,
-    input       [7:0]   din, // data in
-    output      [7:0]   dout, // data out
+    input               rst,    // reset //23
+    input               clk,    // main clock //25
+    (* direct_enable *) input cen,    // clock enable //26
+    (* direct_enable *) input cen_p1, // clock enable at half the speed //27
+    input               cs_n,   // chip select //32
+    input               wr_n,   // write //35
+    input               rd_n,   // read //31
+    input               a0, //37
+    inout       [7:0]   data, // data in and out //12,21,13,19,18,11,9,6
+//     output      [7:0]   dout, // data out
     // peripheral control
-    output              ct1,
-    output              ct2,
-    output              irq_n,  // I do not synchronize this signal
+    output              ct1, //34
+    output              ct2, //43
+    output              irq_n,  // I do not synchronize this signal //36
     // Low resolution output (same as real chip)
-    output              sample, // marks new output sample
-    output  signed  [15:0] left,
-    output  signed  [15:0] right,
+    output              sample, // marks new output sample //42
+//     output  signed  [15:0] left,
+//     output  signed  [15:0] right,
     // Full resolution output
-    output  signed  [15:0] xleft,
-    output  signed  [15:0] xright
+//     output  signed  [15:0] xleft,
+//     output  signed  [15:0] xright
+    output reg             so, //44
+    output reg             sh1, //4
+    output reg             sh2, //3
+    output reg             half_clk //48
+//     output wire led_red  , // Red
+//     output wire led_blue , // Blue
+//     output wire led_green  // Green
+
 );
+
+reg signed  [15:0] xleft;
+reg [15:0] left;
+// wire [15:0] fake_left;
+// assign fake_left = 16'b1001011010010110;
+
+wire [7:0] data_in;
+wire [7:0] data_out;
+wire bus_read = !cs_n && !rd_n && wr_n;
+wire bus_write = !cs_n && !wr_n;
+assign data = (!bus_write && bus_read) ? data_out : 8'bZ;
+assign data_in = (!bus_read && bus_write) ? data : 8'hFF;
 
 // Timers
 wire [9:0]  value_A;
@@ -104,7 +126,7 @@ wire            lfo_up;
 wire    [7:0]   am;
 wire    [7:0]   pm;
 wire    [6:0]   amd, pmd;
-wire    [7:0]   test_mode;
+// wire    [7:0]   test_mode;
 wire            noise;
 
 wire m1_enters, m2_enters, c1_enters, c2_enters;
@@ -127,7 +149,7 @@ jt51_lfo u_lfo(
     .noise      ( noise     ),
 
     // Test
-    .test       ( test_mode ),
+//     .test       ( test_mode ),
     .lfo_clk    (           ),
 
     .am         ( am        ),
@@ -258,22 +280,20 @@ jt51_acc u_acc(
     .op_out     ( op_out        ),
     .ne         ( ne            ),
     .noise_mix  ( noise_mix     ),
-    .left       ( left          ),
-    .right      ( right         ),
-    .xleft      ( xleft         ),
-    .xright     ( xright        )
+    .xleft      ( xleft         )
+//     .xright     ( xright        )
 );
 `else
 assign left   = 16'd0;
-assign right  = 16'd0;
-assign xleft  = 16'd0;
-assign xright = 16'd0;
+// assign right  = 16'd0;
+// assign xleft  = 16'd0;
+// assign xright = 16'd0;
 `endif
 
 wire    busy;
 wire    write = !cs_n && !wr_n;
 
-assign  dout = { busy, 5'h0, flag_B, flag_A };
+assign  data_out = { busy, 5'h0, flag_B, flag_A };
 
 /*verilator tracing_on*/
 
@@ -283,10 +303,10 @@ jt51_mmr u_mmr(
     .cen        ( cen_p1        ),
     .a0         ( a0            ),
     .write      ( write         ),
-    .din        ( din           ),
+    .din        ( data_in       ),
     .busy       ( busy          ),
 
-    .test_mode  ( test_mode     ),
+//     .test_mode  ( test_mode     ),
     // CT
     .ct1        ( ct1           ), // the LFO clock can be outputted via CT1 -not implemented-
     .ct2        ( ct2           ),
@@ -354,6 +374,154 @@ jt51_mmr u_mmr(
     .use_prev2      ( use_prev2         ),
     .use_prev1      ( use_prev1         )
 );
+
+reg [3:0] count;
+// reg half_clk;
+// reg sh1_reg;
+// reg sh2_reg;
+// reg so;
+
+// assign half_clk = half_clk;
+// assign sh1 = count[4];
+// assign sh2 = !count[4];
+// assign so = so;
+
+`ifdef debug_manexp_mode
+reg [1:0] dac; // DEBUG // store(ch1) ignore(ch2) recall(ch1) ignore(ch2)
+`endif
+
+initial begin
+    sh1 = 1'b0; // active low
+    sh2 = 1'b1;
+    left[2:0] = 3'd0;
+`ifdef debug_manexp_mode
+    dac = 2'b00;
+`endif
+end
+
+`ifdef debug_manexp_mode
+reg signed  [15:0] xleft_latched;
+reg [15:0] prev_xleft; // DEBUG // actually not prev_xleft but man and exp of previous sample
+
+always @(posedge sample) begin
+    xleft_latched = xleft;
+end
+`endif
+
+always @(posedge sample) begin
+  casez( xleft[15:9] )
+    // negative numbers
+    7'b10?????: begin
+        left[12:3] <= xleft[15:6];
+        left[15:13] <= 3'd7;
+      end
+    7'b110????: begin
+        left[12:3] <= xleft[14:5];
+        left[15:13] <= 3'd6;
+      end
+    7'b1110???: begin
+        left[12:3] <= xleft[13:4];
+        left[15:13] <= 3'd5;
+      end
+    7'b11110??: begin
+        left[12:3] <= xleft[12:3];
+        left[15:13] <= 3'd4;
+      end
+    7'b111110?: begin
+        left[12:3] <= xleft[11:2];
+        left[15:13] <= 3'd3;
+      end
+    7'b1111110: begin
+        left[12:3] <= xleft[10:1];
+        left[15:13] <= 3'd2;
+      end
+    7'b1111111: begin
+        left[12:3] <= xleft[ 9:0];
+        left[15:13] <= 3'd1;
+      end
+    // positive numbers
+    7'b01?????: begin
+        left[12:3] <= xleft[15:6];
+        left[15:13] <= 3'd7;
+      end
+    7'b001????: begin
+        left[12:3] <= xleft[14:5];
+        left[15:13] <= 3'd6;
+      end
+    7'b0001???: begin
+        left[12:3] <= xleft[13:4];
+        left[15:13] <= 3'd5;
+      end
+    7'b00001??: begin
+        left[12:3] <= xleft[12:3];
+        left[15:13] <= 3'd4;
+      end
+    7'b000001?: begin
+        left[12:3] <= xleft[11:2];
+        left[15:13] <= 3'd3;
+      end
+    7'b0000001: begin
+        left[12:3] <= xleft[10:1];
+        left[15:13] <= 3'd2;
+      end
+    7'b0000000: begin
+        left[12:3] <= xleft[ 9:0];
+        left[15:13] <= 3'd1;
+      end
+
+    default: begin
+        left[12:3] <= xleft[9:0];
+        left[15:13] <= 3'd1;
+      end
+  endcase
+end
+
+always @(posedge clk) begin
+    if(sample) begin
+        count = 4'b0;
+`ifdef debug_manexp_mode
+        dac = dac + 1;
+`endif
+        half_clk <= 1'b0;
+        sh1 <= ~sh1; // actually sh1 and sh2 should be kept low for a little longer, not switch instantly when it's time for the other channel
+        sh2 <= ~sh2;
+    end
+    else if(!half_clk) begin
+        half_clk <= 1'b1;
+    end
+    else begin
+        count = count + 1;
+        half_clk <= 1'b0;
+    end
+
+`ifdef debug_manexp_mode
+    if (dac == 2'b00) // ch2
+        so <= 1'b0;
+    else if (dac == 2'b01) begin
+        so <= xleft_latched[count];
+        prev_xleft[count] <= left[count]; // store
+    end else if (dac == 2'b10) // ch2
+        so <= 1'b0;
+    else if (dac == 2'b11)
+        so <= prev_xleft[count]; // recall
+`else
+    if(sh1)
+        so <= left[count];
+    else
+        so <= 1'b0;
+`endif
+
+end
+
+// SB_RGBA_DRV RGB_DRIVER (
+//     .RGBLEDEN(1'b1                                            ),
+//     .RGB0PWM (!count),
+//     .CURREN  (1'b1                                            ),
+//     .RGB0    (led_green                                       ), //Actual Hardware connection
+// );
+// defparam RGB_DRIVER.RGB0_CURRENT = "0b000001";
+// defparam RGB_DRIVER.RGB1_CURRENT = "0b000001";
+// defparam RGB_DRIVER.RGB2_CURRENT = "0b000001";
 
 `ifdef SIMULATION
 `ifndef VERILATOR

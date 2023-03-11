@@ -33,6 +33,7 @@ module jt51_phrom
 	output reg [18:0] ph,
 );
 
+	reg [4:0] addr_latched;
 	reg [18:0] stb[3:0][31:0];
 	initial
 	begin
@@ -169,7 +170,10 @@ module jt51_phrom
 		stb[3][5'd31] = 19'b1101011000111011101;
 	end
 
-	always @ (posedge clk) if(cen)
-		ph <= stb[phaselo_XI_76][addr];
+	always @(posedge clk)
+		addr_latched <= addr;
+
+	always @(*)
+		ph <= stb[phaselo_XI_76][clk ? addr : addr_latched]; // addr_latched might be stale on clk edge
 
 endmodule

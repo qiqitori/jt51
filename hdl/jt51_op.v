@@ -60,7 +60,7 @@ module jt51_op(
 
 wire signed [13:0] prev1, prevprev1, prev2;
 
-jt51_sh #( .width(14), .stages(8)) prev1_buffer(
+jt51_sh8 prev1_buffer(
     .rst    ( rst   ),
     .clk    ( clk   ),
     .cen    ( cen   ),
@@ -68,7 +68,7 @@ jt51_sh #( .width(14), .stages(8)) prev1_buffer(
     .drop   ( prev1 )
 );
 
-jt51_sh #( .width(14), .stages(8)) prevprev1_buffer(
+jt51_sh8 prevprev1_buffer(
     .rst    ( rst   ),
     .clk    ( clk   ),
     .cen    ( cen   ),
@@ -76,7 +76,7 @@ jt51_sh #( .width(14), .stages(8)) prevprev1_buffer(
     .drop   ( prevprev1 )
 );
 
-jt51_sh #( .width(14), .stages(8)) prev2_buffer(
+jt51_sh8 prev2_buffer(
     .rst    ( rst   ),
     .clk    ( clk   ),
     .cen    ( cen   ),

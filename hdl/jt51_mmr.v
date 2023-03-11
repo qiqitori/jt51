@@ -29,7 +29,7 @@ module jt51_mmr(
     output  reg     busy,
 
     // Original test bits
-    output reg [7:0] test_mode,
+//     output reg [7:0] test_mode,
 
     // CT
     output  reg     ct1,
@@ -151,7 +151,7 @@ always @(posedge clk, posedge rst) begin : memory_mapped_registers
         { ct2, ct1 }    <= 2'd0;
         csm             <= 1'b0;
         din_copy        <= 8'd0;
-        test_mode       <= 8'd0;
+//         test_mode       <= 8'd0;
         `ifdef SIMULATION
         mmr_dump <= 1'b0;
         `endif
@@ -179,7 +179,7 @@ always @(posedge clk, posedge rst) begin : memory_mapped_registers
                 if( selected_register < 8'h20 ) begin
                     case( selected_register)
                     // registros especiales
-                    REG_TEST:   test_mode <= din; // regardless of din
+//                     REG_TEST:   test_mode <= din; // regardless of din
                     `ifdef TEST_SUPPORT
                     REG_TEST2:  { test_op0, test_eg } <= din[1:0];
                     `endif

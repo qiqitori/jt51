@@ -33,10 +33,7 @@ module jt51_acc(
     input   signed  [13:0]  op_out,
     input                   ne,     // noise enable
     input   signed  [11:0]  noise_mix,
-    output  signed  [15:0]  left,
-    output  signed  [15:0]  right,
-    output  reg signed  [15:0]  xleft,  // exact outputs
-    output  reg signed  [15:0]  xright
+    output  reg signed  [15:0]  xleft  // exact outputs
 );
 
 reg signed [13:0] op_val;
@@ -62,7 +59,7 @@ end
 
 wire ren = rl_I[1];
 wire len = rl_I[0];
-reg signed [16:0] pre_left, pre_right;
+reg signed [16:0] pre_left;//, pre_right;
 wire signed [15:0] total;
 wire signed [16:0] total_ex = {total[15],total};
 
@@ -88,18 +85,18 @@ always @(posedge clk) begin
         if( rst_sum )  begin
             sum_all <= 1'b1;
             if( !sum_all ) begin
-                pre_right <= ren ? total_ex : 17'd0;
+//                 pre_right <= ren ? total_ex : 17'd0;
                 pre_left  <= len ? total_ex : 17'd0;
             end
             else begin
-                pre_right <= pre_right + (ren ? total_ex : 17'd0);
+//                 pre_right <= pre_right + (ren ? total_ex : 17'd0);
                 pre_left  <= pre_left  + (len ? total_ex : 17'd0);
             end
         end
         if( c1_enters ) begin
             sum_all <= 1'b0;
             xleft  <= lim16(pre_left);
-            xright <= lim16(pre_right);
+//             xright <= lim16(pre_right);
         end
     end
 end
@@ -129,32 +126,6 @@ jt51_sh #(.width(16),.stages(8)) u_acc(
     .din    ( opsum     ),
     .drop   ( total     )
 );
-
-
-wire signed [9:0] left_man, right_man;
-wire [2:0] left_exp, right_exp;
-
-jt51_exp2lin left_reconstruct(
-    .lin( left      ),
-    .man( left_man  ),
-    .exp( left_exp  )
-);
-
-jt51_exp2lin right_reconstruct(
-    .lin( right     ),
-    .man( right_man ),
-    .exp( right_exp )
-);
-
-jt51_lin2exp left2exp(
-  .lin( xleft    ),
-  .man( left_man ),
-  .exp( left_exp ) );
-
-jt51_lin2exp right2exp(
-  .lin( xright    ),
-  .man( right_man ),
-  .exp( right_exp ) );
 
 `ifdef DUMPLEFT
 

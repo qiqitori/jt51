@@ -34,7 +34,7 @@ module jt51_exprom
     output reg [9:0]        etf,
     output reg [2:0]        etg
 );
-
+    reg [4:0] addr_latched;
     reg [9:0] explut_etf[31:0];
     reg [2:0] explut_etg[31:0];
     initial
@@ -297,9 +297,12 @@ module jt51_exprom
         explut_etg[3][5'd31] = 3'b010;
     end
 
-    always @ (posedge clk) if(cen) begin
-        etf <= explut_etf[totalatten_XII_76][addr];
-        etg <= explut_etg[totalatten_XII_76][addr];
+    always @ (posedge clk) // only update addr on clock edge
+        addr_latched <= addr;
+
+    always @(*) begin // allow etf and etg updates whenever totalatten_XII_76 changes
+        etf <= explut_etf[totalatten_XII_76][clk ? addr : addr_latched]; // addr_latched might be stale on clk edge
+        etg <= explut_etg[totalatten_XII_76][clk ? addr : addr_latched]; // addr_latched might be stale on clk edge
     end
 
 endmodule
